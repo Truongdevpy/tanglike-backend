@@ -1,0 +1,39 @@
+﻿services:
+  - type: web
+    name: tanglike-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+      - key: THMXH_API_URL
+        value: https://thmxh.com/api/v2
+      - key: THMXH_API_KEY
+        sync: false
+      - key: TTC_API_URL
+        value: https://tuongtaccheo.com/api/v2
+      - key: TTC_API_KEY
+        sync: false
+      - key: TTC_ACCESS_TOKEN
+        sync: false
+      - key: BANK_NAME
+        value: MBBANK
+      - key: BANK_ACCOUNT_NO
+        sync: false
+      - key: BANK_ACCOUNT_HOLDER
+        sync: false
