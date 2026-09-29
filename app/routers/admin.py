@@ -93,6 +93,8 @@ class SystemSettingsUpdateRequest(BaseModel):
 # feature flags. Credentials belong in the deployment environment or a secret
 # manager and must never be returned by this API.
 PUBLIC_SYSTEM_SETTING_KEYS = frozenset({
+    "thmxh_markup_percent", "thmxh_dealer_markup_percent",
+    "contact_phone", "contact_zalo", "hotline", "facebook_url", "telegram_url",
     "site_name", "site_title", "site_description", "currency_symbol",
     "site_logo", "favicon_url", "brand_color", "primary_color", "auth_banner_text", "meta_keywords",
     "ttc_rate_divider", "ttc_markup_percent", "default_markup_percent",
@@ -821,7 +823,7 @@ async def admin_update_coupon(
         username=admin.username,
         action="UPDATE_COUPON",
         target_type="COUPON",
-        target_id=coupon.id,
+        target_id=str(coupon.id),
         details=f"Cập nhật mã giảm giá #{coupon.id} ({coupon.code})"
     )
     db.add(audit)
@@ -847,7 +849,7 @@ async def admin_toggle_coupon_status(
         username=admin.username,
         action="TOGGLE_COUPON_STATUS",
         target_type="COUPON",
-        target_id=coupon.id,
+        target_id=str(coupon.id),
         details=f"Đổi trạng thái mã #{coupon.id} ({coupon.code}) sang {coupon.status}"
     )
     db.add(audit)
@@ -876,7 +878,7 @@ async def admin_delete_coupon(
             username=admin.username,
             action="DEACTIVATE_COUPON",
             target_type="COUPON",
-            target_id=coupon.id,
+            target_id=str(coupon.id),
             details=f"Vô hiệu hóa mã giảm giá #{coupon.id} ({coupon.code}) đã dùng {used_count} lần"
         )
         db.add(audit)
@@ -892,7 +894,7 @@ async def admin_delete_coupon(
         username=admin.username,
         action="DELETE_COUPON",
         target_type="COUPON",
-        target_id=coupon_id,
+        target_id=str(coupon_id),
         details=f"Xóa vĩnh viễn mã giảm giá #{coupon_id} ({coupon.code})"
     )
     db.add(audit)
@@ -2015,21 +2017,16 @@ async def admin_update_settings(
     admin: User = Depends(require_role(["ADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
-    unsupported = set(payload.settings) - PUBLIC_SYSTEM_SETTING_KEYS
-    if unsupported:
-        raise HTTPException(
-            status_code=400,
-            detail="Cài đặt không được phép hoặc chứa dữ liệu nhạy cảm: " + ", ".join(sorted(unsupported)),
-        )
-    if "zalo_url" in payload.settings:
-        zalo_val = str(payload.settings["zalo_url"] or "").strip()
+    valid_settings = {k: str(v) for k, v in payload.settings.items() if k in PUBLIC_SYSTEM_SETTING_KEYS}
+    if "zalo_url" in valid_settings:
+        zalo_val = str(valid_settings["zalo_url"] or "").strip()
         if zalo_val and not is_safe_presentation_url(zalo_val):
             raise HTTPException(
                 status_code=400,
                 detail="zalo_url không hợp lệ hoặc chứa scheme nguy hiểm (XSS detected)."
             )
     changed_keys = []
-    for k, v in payload.settings.items():
+    for k, v in valid_settings.items():
         res = await db.execute(select(SystemSetting).where(SystemSetting.key == k))
         setting = res.scalar_one_or_none()
         str_val = str(v)

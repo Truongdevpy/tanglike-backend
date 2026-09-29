@@ -133,6 +133,11 @@ def _get_node_bin() -> str:
     if node_bin and os.path.exists(node_bin):
         return node_bin
     
+    import shutil
+    which_node = shutil.which("node")
+    if which_node:
+        return which_node
+
     nvm_dir = Path.home() / ".nvm" / "versions" / "node"
     if nvm_dir.exists():
         versions = sorted([d for d in nvm_dir.iterdir() if d.is_dir()], reverse=True)
@@ -145,6 +150,10 @@ def _get_node_bin() -> str:
 
 
 def _wasm_encrypt_via_node(wasm_bytes: bytes, payload: dict, arg1: str = "0") -> str:
+    node_bin = _get_node_bin()
+    import shutil
+    if not shutil.which(node_bin) and not os.path.exists(node_bin):
+        raise RuntimeError("M?y ch? Cloud ch?a c? NodeJS ?? gi?i m? WASM c?a MBBank App. Vui l?ng chuy?n Lo?i API sang 'ThueAPI / Webhook' ?? qu?t t? ??ng qua Token.")
     if not RUN_WASM_JS_PATH.exists():
         raise FileNotFoundError(f"Missing {RUN_WASM_JS_PATH}")
 

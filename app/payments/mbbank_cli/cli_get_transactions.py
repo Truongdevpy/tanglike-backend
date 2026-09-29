@@ -6,9 +6,6 @@ import sys
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 
-# Import the existing test_mb which contains MBBankService
-import test_mb
-
 def _default_from_date():
     return (datetime.now() - timedelta(days=2)).strftime("%d/%m/%Y")
 
@@ -16,6 +13,9 @@ def _default_to_date():
     return datetime.now().strftime("%d/%m/%Y")
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(description="Standalone MBBank login/balance/transaction flow returning pure JSON.")
     parser.add_argument("--config-file", required=True)
     args = parser.parse_args()
@@ -28,6 +28,15 @@ def main():
     account_no = config.get("account_no")
     from_date = config.get("from_date", _default_from_date())
     to_date = config.get("to_date", _default_to_date())
+
+    try:
+        import test_mb
+    except Exception as exc:
+        print(json.dumps({
+            "status": "error",
+            "message": f"Kh?ng th? n?p module MBBank ({type(exc).__name__}: {str(exc)}). G?i ?: H?y ki?m tra c?i ??t th? vi?n ho?c chuy?n sang ch? ?? ThueAPI/Webhook."
+        }, ensure_ascii=False))
+        return
 
     f_out = io.StringIO()
     with redirect_stdout(f_out):
@@ -76,6 +85,4 @@ def main():
     print(json.dumps(result, ensure_ascii=False))
 
 if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
     main()

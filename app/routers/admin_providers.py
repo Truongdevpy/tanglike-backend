@@ -6,7 +6,7 @@ import re
 import unicodedata
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
@@ -1535,14 +1535,30 @@ async def admin_update_provider(
     return ApiResponse(data=format_provider_response(provider), message="Cập nhật nhà cung cấp thành công.")
 
 @provider_router.delete("/providers/{id}", response_model=ApiResponse[bool])
-async def admin_delete_provider(id: int, db: AsyncSession = Depends(get_db)):
+async def admin_delete_provider(
+    id: int,
+    admin: User = Depends(require_role(["ADMIN"])),
+    db: AsyncSession = Depends(get_db)
+):
     res = await db.execute(select(Provider).where(Provider.id == id))
     provider = res.scalar_one_or_none()
     if not provider:
-        raise HTTPException(status_code=404, detail="Không tìm thấy nhà cung cấp.")
+        raise HTTPException(status_code=404, detail="Kh?ng t?m th?y nh? cung c?p.")
+    await db.execute(update(Service).where(Service.provider_id == id).values(provider_id=None, external_service_id=None))
     await db.delete(provider)
+    audit = AuditLog(
+        user_id=admin.id,
+        username=admin.username,
+        action="DELETE_PROVIDER",
+        target_type="PROVIDER",
+        target_id=str(id),
+        details=f"X?a nh? cung c?p #{id} ({provider.name})"
+    )
+    db.add(audit)
+    from app.routers.services import invalidate_service_cache
+    invalidate_service_cache()
     await db.commit()
-    return ApiResponse(data=True, message="Đã xóa nhà cung cấp thành công.")
+    return ApiResponse(data=True, message="?? x?a nh? cung c?p th?nh c?ng.")
 
 # --- TuongTacCheo Dedicated Management Endpoints ---
 

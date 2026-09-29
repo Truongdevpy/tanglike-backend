@@ -69,7 +69,13 @@ class BankSyncService:
             )
             raw_out = proc.stdout.strip()
             if proc.returncode != 0 or not raw_out:
-                return [], f"Lỗi chạy script MBBank nội bộ: {proc.stderr[:200] or 'Không có dữ liệu trả về'}"
+                err_text = (proc.stderr or "").strip()
+                if not err_text:
+                    err_text = "Kh?ng c? d? li?u tr? v? t? script"
+                else:
+                    lines = [ln.strip() for ln in err_text.splitlines() if ln.strip()]
+                    err_text = lines[-1] if lines else err_text[-250:]
+                return [], f"L?i ch?y script MBBank n?i b?: {err_text}"
             data = json.loads(raw_out)
         except Exception as exc:
             return [], f"Không thể thực thi script MBBank nội bộ: {str(exc)[:200]}"

@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, Numeric, Boolean, DateTime, ForeignKey, Text, Index
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from app.database.session import Base
 
 class User(Base):
@@ -96,6 +96,12 @@ class Service(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    @validates("external_service_id")
+    def validate_external_service_id(self, key, value):
+        if value is not None:
+            return str(value)
+        return None
+
     category = relationship("Category", back_populates="services")
     provider = relationship("Provider", back_populates="services")
     orders = relationship("Order", back_populates="service")
@@ -126,6 +132,12 @@ class Order(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
+
+    @validates("external_order_id")
+    def validate_external_order_id(self, key, value):
+        if value is not None:
+            return str(value)
+        return None
 
     user = relationship("User", back_populates="orders")
     service = relationship("Service", back_populates="orders")
@@ -292,6 +304,17 @@ class AuditLog(Base):
     details = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
 
+    def __init__(self, **kwargs):
+        if "target_id" in kwargs and kwargs["target_id"] is not None:
+            kwargs["target_id"] = str(kwargs["target_id"])
+        super().__init__(**kwargs)
+
+    @validates("target_id")
+    def validate_target_id(self, key, value):
+        if value is not None:
+            return str(value)
+        return None
+
 
 class JobRun(Base):
     """Durable worker execution history for operational monitoring."""
@@ -334,6 +357,13 @@ class RefillRequest(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     external_refill_id = Column(String(100), nullable=True)
+
+    @validates("external_refill_id")
+    def validate_external_refill_id(self, key, value):
+        if value is not None:
+            return str(value)
+        return None
+
     status = Column(String(20), default="PENDING", nullable=False) # PENDING, PROCESSING, COMPLETED, REJECTED
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -348,6 +378,13 @@ class ProviderServiceMapping(Base):
     provider_id = Column(Integer, ForeignKey("providers.id"), index=True, nullable=False)
     service_id = Column(Integer, ForeignKey("services.id"), index=True, nullable=True)
     external_service_id = Column(String(100), index=True, nullable=False)
+
+    @validates("external_service_id")
+    def validate_external_service_id(self, key, value):
+        if value is not None:
+            return str(value)
+        return ""
+
     external_name = Column(String(255), nullable=True)
     external_category = Column(String(255), nullable=True)
     original_rate = Column(Float, default=0.0, nullable=False)
@@ -384,6 +421,13 @@ class PriceSyncLog(Base):
     provider_id = Column(Integer, ForeignKey("providers.id"), index=True, nullable=False)
     service_id = Column(Integer, ForeignKey("services.id"), index=True, nullable=True)
     external_service_id = Column(String(100), index=True, nullable=False)
+
+    @validates("external_service_id")
+    def validate_external_service_id(self, key, value):
+        if value is not None:
+            return str(value)
+        return ""
+
     service_name = Column(String(255), nullable=False)
     old_rate = Column(Float, default=0.0, nullable=False)
     new_rate = Column(Float, default=0.0, nullable=False)
