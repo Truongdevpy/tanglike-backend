@@ -130,13 +130,25 @@ def _download_wasm() -> bytes:
 
 def _get_node_bin() -> str:
     node_bin = os.getenv("NODE_BIN")
-    if node_bin and os.path.exists(node_bin):
+    if node_bin and (os.path.exists(node_bin) or shutil.which(node_bin)):
         return node_bin
     
     import shutil
     which_node = shutil.which("node")
     if which_node:
         return which_node
+
+    try:
+        from ensure_node import ensure_node_bin
+        return ensure_node_bin()
+    except Exception:
+        pass
+
+    try:
+        from app.payments.mbbank_cli.ensure_node import ensure_node_bin
+        return ensure_node_bin()
+    except Exception:
+        pass
 
     nvm_dir = Path.home() / ".nvm" / "versions" / "node"
     if nvm_dir.exists():

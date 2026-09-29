@@ -46,12 +46,12 @@ class BankSyncService:
         if not chosen_script:
             return [], "Chưa tìm thấy script đồng bộ nội bộ mbbank_sync/cli_get_transactions.py."
 
-        import shutil
-        if not shutil.which("node"):
-            return [], (
-                "Máy chủ Cloud (Render) đang chạy môi trường Python không có sẵn NodeJS để giải mã WASM của MBBank App. "
-                "Vui lòng đổi Loại API sang 'ThueAPI / Webhook' để nạp tiền tự động ổn định 24/7!"
-            )
+        node_bin = "node"
+        try:
+            from app.payments.mbbank_cli.ensure_node import ensure_node_bin
+            node_bin = ensure_node_bin()
+        except Exception:
+            pass
 
         import tempfile
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tf:
@@ -64,10 +64,17 @@ class BankSyncService:
 
         try:
             cwd = os.path.dirname(chosen_script)
+            env = dict(os.environ)
+            if node_bin and (os.path.exists(node_bin) or shutil.which(node_bin)):
+                node_dir = os.path.dirname(os.path.abspath(node_bin))
+                env["PATH"] = f"{node_dir}:{env.get('PATH', '')}"
+                env["NODE_BIN"] = str(node_bin)
+
             proc = await asyncio.to_thread(
                 subprocess.run,
                 [sys.executable, chosen_script, "--config-file", cfg_path],
                 cwd=cwd,
+                env=env,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
