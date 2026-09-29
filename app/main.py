@@ -448,11 +448,21 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(MaintenanceModeMiddleware)
 
 # Secure CORS configuration
-origins = settings.CORS_ORIGINS if settings.CORS_ORIGINS else ["http://localhost:3000"]
+default_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://tanglike.io.vn",
+    "https://www.tanglike.io.vn",
+]
+origins = list(settings.CORS_ORIGINS) if settings.CORS_ORIGINS else default_origins
+for o in default_origins:
+    if o not in origins:
+        origins.append(o)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https://.*tanglike.*\.vercel\.app$",
+    allow_origin_regex=r"^https://.*(tanglike.*\.vercel\.app|tanglike\.io\.vn)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
