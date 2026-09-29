@@ -46,6 +46,13 @@ class BankSyncService:
         if not chosen_script:
             return [], "Chưa tìm thấy script đồng bộ nội bộ mbbank_sync/cli_get_transactions.py."
 
+        import shutil
+        if not shutil.which("node"):
+            return [], (
+                "Máy chủ Cloud (Render) đang chạy môi trường Python không có sẵn NodeJS để giải mã WASM của MBBank App. "
+                "Vui lòng đổi Loại API sang 'ThueAPI / Webhook' để nạp tiền tự động ổn định 24/7!"
+            )
+
         import tempfile
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tf:
             cfg_path = tf.name
