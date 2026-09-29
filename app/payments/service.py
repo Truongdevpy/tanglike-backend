@@ -188,6 +188,20 @@ class PaymentService:
                     )
                     matched_user = u_id_res.scalar_one_or_none()
 
+                if not matched_user:
+                    # Match normalized username/email where banks strip '@' and '.'
+                    clean_id = "".join(c for c in identifier.lower() if c.isalnum())
+                    if len(clean_id) >= 3:
+                        all_users = await self.db.execute(
+                            select(User).where(User.status == "ACTIVE", User.is_deleted == False)
+                        )
+                        for u in all_users.scalars().all():
+                            u_clean = "".join(c for c in u.username.lower() if c.isalnum())
+                            e_clean = "".join(c for c in (u.email or "").lower() if c.isalnum())
+                            if u_clean == clean_id or (e_clean and e_clean == clean_id):
+                                matched_user = u
+                                break
+
             if matched_user:
                 cfg = await self.get_banking_config()
                 min_dep = Decimal(str(cfg.get("min_deposit") or settings.MIN_DEPOSIT_AMOUNT or 10000))
