@@ -13,7 +13,7 @@ from app.notifications.telegram import TelegramNotifier
 logger = logging.getLogger(__name__)
 
 class OrderWorker:
-    def __init__(self, check_interval: int = 15):
+    def __init__(self, check_interval: int = 30):
         self.check_interval = check_interval
         self.is_running = False
         self._last_bank_sync: datetime | None = None
@@ -64,7 +64,7 @@ class OrderWorker:
                         )
 
     async def sync_bank_transactions(self):
-        interval = max(15, settings.MB_BANK_POLL_INTERVAL_SECONDS)
+        interval = max(120, settings.MB_BANK_POLL_INTERVAL_SECONDS)
         if self._last_bank_sync and (datetime.utcnow() - self._last_bank_sync).total_seconds() < interval:
             return
         self._last_bank_sync = datetime.utcnow()
@@ -392,12 +392,15 @@ class OrderWorker:
     async def run_loop(self):
         self.is_running = True
         logger.info("Order background worker started.")
+        import gc
         while self.is_running:
             await self._run_monitored("bank_sync", self.sync_bank_transactions)
             await self._run_monitored("provider_service_sync", self.sync_provider_services)
             await self._run_monitored("order_sync", self.sync_pending_orders)
             await self._run_monitored("refill_sync", self.sync_refill_requests)
             await self._run_monitored("maintenance_cleanup", self.cleanup_expired_records)
+            # Reclaim unreferenced memory objects to stay well below 512MB RAM
+            gc.collect()
             await asyncio.sleep(self.check_interval)
 
     def stop(self):

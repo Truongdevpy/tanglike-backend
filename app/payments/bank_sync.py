@@ -20,6 +20,10 @@ from app.payments.service import PaymentService
 
 logger = logging.getLogger(__name__)
 
+# Global concurrency lock to guarantee only ONE bank sync runs at any moment,
+# preventing multiple subprocesses / ONNX instances from exceeding 512MB RAM on Cloud instances (Render).
+_BANK_SYNC_LOCK = asyncio.Lock()
+
 
 class BankSyncService:
     def __init__(self, db: AsyncSession):
@@ -123,6 +127,23 @@ class BankSyncService:
         return parsed, None
 
     async def sync_mbbank(self) -> dict[str, Any]:
+        if _BANK_SYNC_LOCK.locked():
+            logger.info("Bank sync is already running in another task, skipping duplicate execution.")
+            return {
+                "ok": True,
+                "seen": 0,
+                "processed": 0,
+                "credited": 0,
+                "ignored": 0,
+                "failed": 0,
+                "duplicates": 0,
+                "message": "?ang c? ti?n tr?nh ??ng b? ng?n h?ng kh?c ?ang ch?y, b? qua l?n g?i tr?ng l?p."
+            }
+
+        async with _BANK_SYNC_LOCK:
+            return await self._sync_mbbank_internal()
+
+    async def _sync_mbbank_internal(self) -> dict[str, Any]:
         config = await PaymentService(self.db).get_banking_config()
         # Enabled check (allow fallback to env if explicitly configured)
         is_enabled = bool(config.get("enabled"))

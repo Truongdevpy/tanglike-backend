@@ -83,6 +83,8 @@ def main():
             }
 
     print(json.dumps(result, ensure_ascii=False))
+    import gc
+    gc.collect()
 
 if __name__ == "__main__":
     main()

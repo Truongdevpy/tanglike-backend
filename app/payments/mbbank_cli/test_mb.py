@@ -245,7 +245,20 @@ def _get_ocr_session():
     except ImportError:
         return None
 
-    _OCR_SESSION = ort.InferenceSession(str(OCR_MODEL_PATH))
+    # Memory optimization for 512MB RAM Cloud containers (Render):
+    # Set single thread and sequential execution to prevent onnxruntime from allocating
+    # heavy multi-threaded thread pools across all host CPU cores.
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = 1
+    opts.inter_op_num_threads = 1
+    opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+
+    _OCR_SESSION = ort.InferenceSession(
+        str(OCR_MODEL_PATH),
+        sess_options=opts,
+        providers=["CPUExecutionProvider"]
+    )
     return _OCR_SESSION
 
 
